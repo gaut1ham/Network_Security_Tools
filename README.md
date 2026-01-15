@@ -1,8 +1,3 @@
-🔐 Cybersecurity Toolkit
-https://img.shields.io/badge/Python-3.8%252B-blue
-https://img.shields.io/badge/License-MIT-green
-https://img.shields.io/badge/Status-Active-brightgreen
-
 A collection of security tools for educational purposes and authorized penetration testing by @gaut1ham.
 
 ⚠️ CRITICAL DISCLAIMER
