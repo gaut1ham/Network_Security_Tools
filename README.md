@@ -122,20 +122,7 @@ Tool	Speed	Accuracy	Memory Usage
 Network Scanner	2.3s/256 IPs	99.8%	50-80 MB
 Port Scanner	150 ports/sec	98.5%	100-150 MB
 Packet Sniffer	Real-time	100%	Varies
-🏗️ Project Structure
-text
-cybersecurity-tools/
-├── src/
-│   ├── wifi_extractor.py
-│   ├── network_scanner.py
-│   ├── port_scanner.py
-│   └── packet_sniffer.py
-├── requirements.txt
-├── README.md
-├── LICENSE
-└── examples/
-    ├── sample_scan.json
-    └── sample_output.txt
+
 ⚙️ Technical Details
 Dependencies
 txt
