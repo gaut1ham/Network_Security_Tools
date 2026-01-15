@@ -1,0 +1,166 @@
+import scapy.all as scapy
+import argparse
+import sys
+from datetime import datetime
+import socket
+
+def scan_network(ip_range):
+    """
+    Scan network for active devices using ARP requests
+    """
+    print(f"[*] Scanning network: {ip_range}")
+    print("[*] This may take a while...\n")
+    
+    # Create ARP request packet
+    arp_request = scapy.ARP(pdst=ip_range)
+    broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast/arp_request
+    
+    # Send packet and receive responses
+    answered_list = scapy.srp(arp_request_broadcast, timeout=2, verbose=False)[0]
+    
+    devices = []
+    
+    for element in answered_list:
+        device_info = {
+            "ip": element[1].psrc,
+            "mac": element[1].hwsrc,
+            "vendor": get_vendor_from_mac(element[1].hwsrc),
+            "hostname": get_hostname(element[1].psrc)
+        }
+        devices.append(device_info)
+    
+    return devices
+
+def get_vendor_from_mac(mac_address):
+    """
+    Get vendor from MAC address (basic implementation)
+    """
+    # In practice, use a MAC vendor database
+    # This is a simplified version
+    vendors = {
+        "00:50:56": "VMware",
+        "00:0C:29": "VMware",
+        "00:1A:2B": "Cisco",
+        "00:15:5D": "Microsoft",
+        "00:1C:42": "Parallels",
+        "00:21:5A": "Huawei",
+        "00:1D:72": "Dell",
+        "00:25:90": "Apple"
+    }
+    
+    mac_prefix = mac_address[:8].upper()
+    return vendors.get(mac_prefix, "Unknown")
+
+def get_hostname(ip_address):
+    """
+    Get hostname from IP address
+    """
+    try:
+        hostname = socket.gethostbyaddr(ip_address)[0]
+        return hostname
+    except:
+        return "Unknown"
+
+def display_results(devices):
+    """
+    Display scan results in a formatted table
+    """
+    if not devices:
+        print("No devices found!")
+        return
+    
+    print("=" * 80)
+    print(f"SCAN RESULTS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 80)
+    print(f"{'IP Address':<20} {'MAC Address':<20} {'Vendor':<25} {'Hostname':<15}")
+    print("-" * 80)
+    
+    for device in devices:
+        print(f"{device['ip']:<20} {device['mac']:<20} {device['vendor']:<25} {device['hostname']:<15}")
+    
+    print("=" * 80)
+    print(f"Total devices found: {len(devices)}")
+
+def save_to_file(devices, filename="network_scan.txt"):
+    """
+    Save scan results to file
+    """
+    with open(filename, 'w') as f:
+        f.write(f"Network Scan Results - {datetime.now()}\n")
+        f.write("=" * 50 + "\n")
+        for device in devices:
+            f.write(f"IP: {device['ip']}\n")
+            f.write(f"MAC: {device['mac']}\n")
+            f.write(f"Vendor: {device['vendor']}\n")
+            f.write(f"Hostname: {device['hostname']}\n")
+            f.write("-" * 30 + "\n")
+    print(f"\n[+] Results saved to {filename}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Network Scanner using ARP")
+    parser.add_argument("-t", "--target", help="Target IP range (e.g., 192.168.1.0/24)")
+    parser.add_argument("-o", "--output", help="Output file name")
+    
+    args = parser.parse_args()
+    
+    # Default target if not specified
+    target = args.target if args.target else "192.168.1.0/24"
+    output_file = args.output if args.output else "network_scan.txt"
+    
+    # Disclaimer
+    print("⚠️  DISCLAIMER: Only scan networks you own or have permission to scan!")
+    print("Unauthorized scanning may be illegal!\n")
+    
+    try:
+        devices = scan_network(target)
+        display_results(devices)
+        save_to_file(devices, output_file)
+        
+        # Additional analysis
+        analyze_network(devices)
+        
+    except KeyboardInterrupt:
+        print("\n[!] Scan interrupted by user")
+        sys.exit(0)
+    except PermissionError:
+        print("[!] Permission denied. Try running with sudo/administrator privileges")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[!] Error: {e}")
+        sys.exit(1)
+
+def analyze_network(devices):
+    """
+    Perform basic network analysis
+    """
+    print("\n" + "=" * 50)
+    print("NETWORK ANALYSIS")
+    print("=" * 50)
+    
+    # Count devices per vendor
+    vendor_count = {}
+    for device in devices:
+        vendor = device['vendor']
+        vendor_count[vendor] = vendor_count.get(vendor, 0) + 1
+    
+    print("\nDevices by vendor:")
+    for vendor, count in vendor_count.items():
+        print(f"  {vendor}: {count} device(s)")
+    
+    # Check for suspicious MAC addresses
+    suspicious_prefixes = ["00:00:00", "FF:FF:FF"]
+    suspicious_devices = []
+    
+    for device in devices:
+        mac_prefix = device['mac'][:8].upper()
+        if mac_prefix in suspicious_prefixes:
+            suspicious_devices.append(device)
+    
+    if suspicious_devices:
+        print("\n⚠️  Potentially suspicious devices found:")
+        for device in suspicious_devices:
+            print(f"  IP: {device['ip']}, MAC: {device['mac']}")
+
+if __name__ == "__main__":
+    main()

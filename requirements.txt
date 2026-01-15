@@ -1,0 +1,22 @@
+# Network Security Tools Requirements
+
+# For all projects
+colorama==0.4.6
+requests==2.31.0
+
+# For network scanning/packet sniffing
+scapy==2.5.0
+
+# For WiFi password extractor (Windows only)
+pycryptodome==3.19.0
+cryptography==42.0.5
+
+# For port scanner
+python-nmap==0.7.1
+
+# Optional: GUI components
+tkinter  # Usually comes with Python
+
+# For email/notification features
+smtplib  # Built-in
+ssl  # Built-in

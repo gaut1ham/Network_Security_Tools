@@ -1,0 +1,179 @@
+import scapy.all as scapy
+from scapy.layers import http
+import argparse
+import sys
+import re
+
+class PacketSniffer:
+    def __init__(self, interface=None, filter_exp=None):
+        self.interface = interface
+        self.filter_exp = filter_exp
+        self.packet_count = 0
+        
+    def get_interface(self):
+        """
+        Get available network interfaces
+        """
+        interfaces = scapy.get_if_list()
+        print("Available interfaces:")
+        for idx, iface in enumerate(interfaces, 1):
+            print(f"  {idx}. {iface}")
+        
+        if self.interface is None:
+            try:
+                choice = int(input("\nSelect interface number: "))
+                self.interface = interfaces[choice - 1]
+            except:
+                print("[!] Invalid choice. Using default interface.")
+                self.interface = interfaces[0] if interfaces else None
+        
+        return self.interface
+    
+    def process_packet(self, packet):
+        """
+        Process captured packets
+        """
+        self.packet_count += 1
+        
+        # Display basic packet info
+        print(f"\n[{self.packet_count}] Packet captured")
+        print("-" * 40)
+        
+        if packet.haslayer(scapy.IP):
+            src_ip = packet[scapy.IP].src
+            dst_ip = packet[scapy.IP].dst
+            proto = packet[scapy.IP].proto
+            
+            print(f"Source IP: {src_ip}")
+            print(f"Destination IP: {dst_ip}")
+            
+            # Protocol mapping
+            protocols = {
+                1: "ICMP", 6: "TCP", 17: "UDP",
+                2: "IGMP", 89: "OSPF", 50: "ESP"
+            }
+            proto_name = protocols.get(proto, f"Protocol {proto}")
+            print(f"Protocol: {proto_name}")
+            
+            # TCP/UDP info
+            if packet.haslayer(scapy.TCP):
+                print(f"Source Port: {packet[scapy.TCP].sport}")
+                print(f"Destination Port: {packet[scapy.TCP].dport}")
+                print(f"Flags: {packet[scapy.TCP].flags}")
+                
+            elif packet.haslayer(scapy.UDP):
+                print(f"Source Port: {packet[scapy.UDP].sport}")
+                print(f"Destination Port: {packet[scapy.UDP].dport}")
+            
+            # HTTP traffic
+            if packet.haslayer(http.HTTPRequest):
+                self.process_http_request(packet)
+            
+            # DNS queries
+            if packet.haslayer(scapy.DNSQR):
+                self.process_dns_query(packet)
+            
+            # Extract possible credentials
+            self.extract_credentials(packet)
+            
+            print("-" * 40)
+    
+    def process_http_request(self, packet):
+        """
+        Process HTTP requests
+        """
+        http_layer = packet[http.HTTPRequest]
+        print("\n[HTTP Request Detected]")
+        print(f"Host: {http_layer.Host.decode()}")
+        print(f"Path: {http_layer.Path.decode()}")
+        print(f"Method: {http_layer.Method.decode()}")
+        
+        # Show headers
+        if http_layer.fields.get('Headers'):
+            print("Headers:")
+            for header, value in http_layer.fields['Headers'].items():
+                if isinstance(value, bytes):
+                    value = value.decode('utf-8', errors='ignore')
+                print(f"  {header}: {value}")
+    
+    def process_dns_query(self, packet):
+        """
+        Process DNS queries
+        """
+        dns_layer = packet[scapy.DNSQR]
+        print(f"\n[DNS Query] {dns_layer.qname.decode()}")
+    
+    def extract_credentials(self, packet):
+        """
+        Try to extract credentials from packet
+        """
+        if packet.haslayer(scapy.Raw):
+            load = packet[scapy.Raw].load.decode('utf-8', errors='ignore')
+            
+            # Look for passwords
+            password_patterns = [
+                r'password[=:]\s*(\S+)',
+                r'pass[=:]\s*(\S+)',
+                r'pwd[=:]\s*(\S+)',
+                r'login[=:]\s*(\S+)',
+                r'user[name]*[=:]\s*(\S+)',
+                r'email[=:]\s*(\S+)'
+            ]
+            
+            for pattern in password_patterns:
+                matches = re.findall(pattern, load, re.IGNORECASE)
+                if matches:
+                    print(f"\n⚠️  Possible credentials found: {matches}")
+    
+    def start_sniffing(self):
+        """
+        Start packet sniffing
+        """
+        if self.interface is None:
+            self.interface = self.get_interface()
+        
+        print(f"\n[*] Starting packet sniffer on interface: {self.interface}")
+        print("[*] Press Ctrl+C to stop\n")
+        
+        try:
+            # Start sniffing
+            scapy.sniff(
+                iface=self.interface,
+                store=False,
+                prn=self.process_packet,
+                filter=self.filter_exp
+            )
+        except KeyboardInterrupt:
+            print(f"\n\n[*] Stopped. Total packets captured: {self.packet_count}")
+        except Exception as e:
+            print(f"[!] Error: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Basic Packet Sniffer")
+    parser.add_argument("-i", "--interface", help="Network interface to sniff on")
+    parser.add_argument("-f", "--filter", help="BPF filter expression (e.g., 'tcp port 80')")
+    
+    args = parser.parse_args()
+    
+    # Disclaimer
+    print("=" * 60)
+    print("PACKET SNIFFER - EDUCATIONAL PURPOSES ONLY")
+    print("=" * 60)
+    print("⚠️  DISCLAIMER:")
+    print("- Only use on networks you own or have permission to monitor")
+    print("- Capturing network traffic without permission is ILLEGAL")
+    print("- Do not capture sensitive information")
+    print("=" * 60)
+    
+    consent = input("\nDo you understand and agree? (yes/no): ")
+    
+    if consent.lower() != 'yes':
+        print("Operation cancelled.")
+        sys.exit(0)
+    
+    # Start sniffer
+    sniffer = PacketSniffer(interface=args.interface, filter_exp=args.filter)
+    sniffer.start_sniffing()
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+# Network Security Tools
+
+## 📋 Prerequisites
+- Python 3.8+
+- Administrator/root privileges (for some tools)
+- Required libraries: `pip install -r requirements.txt`
+
+## ⚠️ Legal Disclaimer
+These tools are for **EDUCATIONAL PURPOSES ONLY**. 
+Only use on systems you own or have explicit permission to test.
+
+## 🔧 Installation
+```bash
+git clone https://github.com/yourusername/network-security-tools.git
+cd network-security-tools
+pip install -r requirements.txt
